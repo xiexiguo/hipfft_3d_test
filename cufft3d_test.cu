@@ -119,4 +119,6 @@ int main()
   free(data_in_h);
   free(data_out_h);
   free(data_fft_h);
+  fclose(f_data_in);
+  fclose(f_data_out);
 }

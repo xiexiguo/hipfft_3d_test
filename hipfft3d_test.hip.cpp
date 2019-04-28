@@ -82,6 +82,7 @@ int main()
   // read data size
   fscanf(f_data_in,"%d %d %d\n", &n[0], &n[1], &n[2]);
   fscanf(f_data_in,"%d\n", &fsign);
+
   if(VERBOSE) printf("FFT 3D size: %d %d %d\n", n[0], n[1], n[2]);
   lmem = n[0] * n[1] * n[2];
 
@@ -119,4 +120,6 @@ int main()
   free(data_in_h);
   free(data_out_h);
   free(data_fft_h);
+  fclose(f_data_in);
+  fclose(f_data_out);
 }
