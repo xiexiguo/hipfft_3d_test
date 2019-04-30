@@ -89,6 +89,7 @@ int main()
   data_out_h = (double*) malloc(2*lmem*sizeof(double));
   data_fft_h = (double*) malloc(2*lmem*sizeof(double));
 
+  // read data from file
   for(int i=0; i< 2*lmem; ++i)
   {
         fscanf(f_data_in,"%lf\n", &data_in_h[i]);
@@ -99,6 +100,26 @@ int main()
       for(int i=0; i<10; ++i) printf("%.16e %.16e\n", data_in_h[i], data_out_h[i]);
   }
 
+  // do fft on CPU fftw
+  fftw_complex *fftw_cpu_in = (fftw_complex*) malloc(2*lmem*sizeof(double));
+  fftw_complex *fftw_cpu_out = (fftw_complex*) malloc(2*lmem*sizeof(double));
+  double *data_fft_cpu_in = (double*) fftw_cpu_in;
+  double *data_fft_cpu_out = (double*) fftw_cpu_out;
+
+  fftw_plan fftw_plan_cpu = fftw_plan_dft_3d(n[0], n[1], n[2], fftw_cpu_in, fftw_cpu_out, fsign, FFTW_EXHAUSTIVE);
+
+  memcpy(fftw_cpu_in, data_in_h, 2*lmem*sizeof(double));
+
+  fftw_execute(fftw_plan_cpu);
+
+  printf("FFT 3d on CPU\n");
+  for(int i=0; i<10; ++i) printf("%.16e %.16e %.16e\n", data_fft_cpu_in[i], data_out_h[i], data_fft_cpu_out[i]);
+
+  fftw_destroy_plan(fftw_plan_cpu);
+  free(fftw_cpu_in);
+  free(fftw_cpu_out);
+
+  // do fft on GPU
   cuErr = cudaMalloc(&data_d, 2*lmem*sizeof(double));
   if(CHECK) cuda_error_check(cuErr, __LINE__);
   cudaMemcpy(data_d, data_in_h, 2*lmem*sizeof(double), cudaMemcpyHostToDevice);
@@ -115,6 +136,7 @@ int main()
 
   cudaMemcpy(data_fft_h, data_d, 2*lmem*sizeof(double), cudaMemcpyDeviceToHost);
 
+  printf("FFT 3d on GPU\n");
   for(int i=0; i<10; ++i) printf("%.16e %.16e %.16e\n", data_in_h[i], data_out_h[i],data_fft_h[i]);
   free(data_in_h);
   free(data_out_h);

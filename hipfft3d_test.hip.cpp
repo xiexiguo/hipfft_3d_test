@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <hip/hip_runtime.h>
 #include <hipfft.h>
+#include <fftw3.h>
 
 #define CHECK 1
-#define VERBOSE 1
+#define VERBOSE 0
 
-void hipda_error_check (hipError_t hipError, int line) {
+using namespace std;
+
+void hip_error_check (hipError_t hipError, int line)
+{
   size_t      free, total;
   hipError_t cErr2;
 
@@ -90,6 +94,7 @@ int main()
   data_out_h = (double*) malloc(2*lmem*sizeof(double));
   data_fft_h = (double*) malloc(2*lmem*sizeof(double));
 
+  // read data from file
   for(int i=0; i< 2*lmem; ++i)
   {
         fscanf(f_data_in,"%lf\n", &data_in_h[i]);
@@ -100,8 +105,28 @@ int main()
       for(int i=0; i<10; ++i) printf("%.16e %.16e\n", data_in_h[i], data_out_h[i]);
   }
 
+  // do fft on CPU fftw
+  fftw_complex *fftw_cpu_in = (fftw_complex*) malloc(2*lmem*sizeof(double));  
+  fftw_complex *fftw_cpu_out = (fftw_complex*) malloc(2*lmem*sizeof(double));  
+  double *data_fft_cpu_in = (double*) fftw_cpu_in;
+  double *data_fft_cpu_out = (double*) fftw_cpu_out;
+
+  fftw_plan fftw_plan_cpu = fftw_plan_dft_3d(n[0], n[1], n[2], fftw_cpu_in, fftw_cpu_out, fsign, FFTW_EXHAUSTIVE);
+
+  memcpy(fftw_cpu_in, data_in_h, 2*lmem*sizeof(double));
+
+  fftw_execute(fftw_plan_cpu);
+
+  printf("FFT 3d on CPU\n");
+  for(int i=0; i<10; ++i) printf("%.16e %.16e %.16e\n", data_fft_cpu_in[i], data_out_h[i], data_fft_cpu_out[i]);  
+
+  fftw_destroy_plan(fftw_plan_cpu);
+  free(fftw_cpu_in);
+  free(fftw_cpu_out);  
+
+  // do fft on GPU
   hipErr = hipMalloc(&data_d, 2*lmem*sizeof(double));
-  if(CHECK) hipda_error_check(hipErr, __LINE__);
+  if(CHECK) hip_error_check(hipErr, __LINE__);
   hipMemcpy(data_d, data_in_h, 2*lmem*sizeof(double), hipMemcpyHostToDevice);
 
   ffthip_plan3d_z(plan, n);
@@ -116,6 +141,7 @@ int main()
 
   hipMemcpy(data_fft_h, data_d, 2*lmem*sizeof(double), hipMemcpyDeviceToHost);
 
+  printf("FFT 3d on GPU\n");
   for(int i=0; i<10; ++i) printf("%.16e %.16e %.16e\n", data_in_h[i], data_out_h[i],data_fft_h[i]);
   free(data_in_h);
   free(data_out_h);
